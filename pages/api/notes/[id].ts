@@ -22,15 +22,38 @@ export default async function handler(
 
   if (req.method === "PUT") {
     const { title, content } = req.body;
-    const updatedNote = await prisma.note.update({
-      where: { id: noteId },
+    const updatedNote = await prisma.note.updateMany({
+      where: {
+        id: noteId,
+        userId: user.userId, // ensures user owns the note
+      },
       data: { title, content },
     });
-    return res.json(updatedNote);
+
+    // Optional: check if any row was actually updated
+    if (updatedNote.count === 0) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this note" });
+    }
+
+    return res.json({ message: "Note updated" });
   }
 
   if (req.method === "DELETE") {
-    await prisma.note.delete({ where: { id: noteId } });
+    const deletedNote = await prisma.note.deleteMany({
+      where: {
+        id: noteId,
+        userId: user.userId, // ensures user owns the note
+      },
+    });
+
+    if (deletedNote.count === 0) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this note" });
+    }
+
     return res.status(204).end();
   }
 

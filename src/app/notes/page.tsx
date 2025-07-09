@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 
@@ -22,25 +22,7 @@ export default function NotesPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    try {
-      const decoded = jwtDecode<DecodedToken>(token);
-      setUserEmail(decoded.email || "Logged in");
-    } catch {
-      localStorage.removeItem("token");
-      router.push("/login");
-    }
-
-    fetchNotes();
-  }, []);
-
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     const token = localStorage.getItem("token");
 
     const res = await fetch("/api/notes", {
@@ -57,7 +39,6 @@ export default function NotesPage() {
     }
 
     const data = await res.json();
-    console.log("Fetched notes:", data);
 
     if (Array.isArray(data)) {
       setNotes(data);
@@ -67,7 +48,26 @@ export default function NotesPage() {
       console.error("Unexpected notes format:", data);
       setNotes([]);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      setUserEmail(decoded.email || "Logged in");
+    } catch {
+      localStorage.removeItem("token");
+      router.push("/login");
+      return;
+    }
+
+    fetchNotes();
+  }, [router, fetchNotes]);
 
   const createNote = async () => {
     const token = localStorage.getItem("token");
@@ -113,10 +113,6 @@ export default function NotesPage() {
     });
     fetchNotes();
   };
-
-  useEffect(() => {
-    fetchNotes();
-  }, []);
 
   return (
     <main className="p-4 max-w-2xl mx-auto">
